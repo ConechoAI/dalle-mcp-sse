@@ -1,0 +1,13 @@
+version: '2'
+services:
+  server:
+    restart: always
+    image: dalle-mcp-sse:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - .env:/app/build/.env
+    command: ["sh", "-c", "cd /app/build && node index.js"]
+    # environment:
+    #   - PORT=3000
+    #   - OPENAI_API_KEY=''

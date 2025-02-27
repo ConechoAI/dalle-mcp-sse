@@ -1,0 +1,32 @@
+{
+    "name": "dalle-mcp",
+    "version": "0.1.2",
+    "description": "MCP server for Dall-e generate image",
+    "bin": {
+      "tavily-mcp": "./build/index.js"
+    },
+    "files": [
+      "build"
+    ],
+    "scripts": {
+      "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+      "prepare": "npm run build",
+      "watch": "tsc --watch",
+      "inspector": "npx @modelcontextprotocol/inspector build/index.js",
+      "prepublishOnly": "npm run build"
+    },
+    "author": "Conecho",
+    "license": "MIT",
+    "dependencies": {
+      "@modelcontextprotocol/sdk": "0.6.0",
+      "axios": "^1.6.7",
+      "dotenv": "^16.4.5",
+      "express": "^4.21.2"
+    },
+    "devDependencies": {
+      "@types/express": "^5.0.0",
+      "@types/node": "^20.11.24",
+      "typescript": "^5.3.3"
+    }
+}
+  
