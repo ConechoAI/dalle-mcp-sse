@@ -4,9 +4,10 @@ import { randomUUID } from "node:crypto";
 import contentType from "content-type";
 import getRawBody from "raw-body";
 import { JSONRPCMessage, JSONRPCMessageSchema } from "@modelcontextprotocol/sdk/types.js";
+import { Transport } from "@modelcontextprotocol/sdk/shared/transport";
 
 // 订阅端实现
-export class SSERedisTransport {
+export class SSERedisTransport implements Transport {
   onmessage?: ((message: JSONRPCMessage) => void) | undefined; 
   onerror?: ((error: Error) => void) | undefined;
   _endpoint: string;
