@@ -2,19 +2,20 @@
 
 import express from "express";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import {CallToolRequestSchema, ListToolsRequestSchema, Tool} from "@modelcontextprotocol/sdk/types.js";
 import axios from "axios";
 import * as dotenv from 'dotenv';
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
+import { SSEPublishTransport, SSESubscribeTransport } from './redis_transport'
 
 dotenv.config();
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 8000;
 const API_KEY = process.env.OPENAI_API_KEY;
 if (!API_KEY) {
   throw new Error("OPENAI_API_KEY environment variable is required");
 }
+const REDIS_URL = process.env.REDIS_URL;
 
 
 interface DalleResponse {
@@ -140,16 +141,21 @@ class DallEClient {
 
   async run(): Promise<void> {
     const app = express();
-    let transport: SSEServerTransport;
     
     app.get("/sse", async (req: any, res: any) => {
       console.log("Received connection");
-      transport = new SSEServerTransport("/messages", res);
+      const transport = new SSESubscribeTransport("/messages", res, REDIS_URL as string);
+      // console.log("Connecting transport", transport);
       await this.server.connect(transport);
     });
     
     app.post("/messages", async (req: any, res: any) => {
       console.log("Received message");
+      const sessionId = req.query.sessionId;
+      console.log("Session ID", sessionId);
+      const transport = new SSEPublishTransport("/messages", sessionId, REDIS_URL as string);
+      // console.log("Connecting transport", transport);
+      await this.server.connect(transport);
       await transport.handlePostMessage(req, res);
     });
     
