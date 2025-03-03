@@ -10,12 +10,12 @@ import { SSERedisTransport } from './redis_transport'
 
 dotenv.config();
 
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 3000;
 const API_KEY = process.env.OPENAI_API_KEY;
 if (!API_KEY) {
   throw new Error("OPENAI_API_KEY environment variable is required");
 }
-const REDIS_URL = process.env.REDIS_URL;
+const REDIS_URL = process.env.REDIS_URL || "redis://redis:6379";
 
 
 interface DalleResponse {
@@ -141,6 +141,7 @@ class DallEClient {
 
   async run(): Promise<void> {
     const app = express();
+    app.use(express.json());
     
     app.get("/sse", async (req: any, res: any) => {
       console.log("Received connection");
@@ -156,12 +157,59 @@ class DallEClient {
       const transport = new SSERedisTransport("/messages", sessionId, REDIS_URL as string);
       // console.log("Connecting transport", transport);
       await this.server.connect(transport);
+
+      let body = req.body
+      if (body.method === "tools/call") {
+        const token = body.params._meta.token
+        console.log("Token", token)
+        const userInfo = await this.fetchUserInfo(token)
+        console.log("User info", userInfo)
+        if (!userInfo) {
+          transport
+          ?.send({
+            jsonrpc: "2.0",
+            id: body.id,
+            error: {
+              code: ErrorCode.InvalidRequest,
+              message: "Invalid token",
+            },
+          });
+          return;
+        }
+      }
+
       await transport.handlePostMessage(req, res);
     });
     
     app.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
     });
+  }
+
+  async fetchUserInfo(token: string): Promise<any> {
+    try {
+      // 模拟请求：根据 jwt 获取用户账户信息
+      // 你可以替换下面的代码为实际的 API 请求
+      const response = await fetch('https://api.conecho.ai/api/account', {
+        method: 'GET',
+        // credentials: 'include',  // 跨域请求也会发送 jwt
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,  // 携带 token
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (!data) {
+          return
+        }
+        return data;
+      } else {
+        return
+      }
+    } catch (error) {
+      return
+    }
   }
 
   async search(params: any): Promise<DalleResponse> {
