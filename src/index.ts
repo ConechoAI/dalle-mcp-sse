@@ -135,7 +135,7 @@ class DallEClient {
         }
         throw error;
       }
-    });
+    }); 
   }
 
 
@@ -169,10 +169,10 @@ class DallEClient {
           ?.send({
             jsonrpc: "2.0",
             id: body.id,
-            error: {
-              code: ErrorCode.InvalidRequest,
-              message: "Invalid token",
-            },
+            result: {content: [{
+              type: "text",
+              text: "Auth failed"  
+            }]},
           });
           return;
         }
