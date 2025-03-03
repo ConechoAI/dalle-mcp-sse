@@ -6,7 +6,7 @@ import {CallToolRequestSchema, ListToolsRequestSchema, Tool} from "@modelcontext
 import axios from "axios";
 import * as dotenv from 'dotenv';
 import { McpError, ErrorCode } from "@modelcontextprotocol/sdk/types.js";
-import { SSEPublishTransport, SSESubscribeTransport } from './redis_transport'
+import { SSERedisTransport } from './redis_transport'
 
 dotenv.config();
 
@@ -144,7 +144,7 @@ class DallEClient {
     
     app.get("/sse", async (req: any, res: any) => {
       console.log("Received connection");
-      const transport = new SSESubscribeTransport("/messages", res, REDIS_URL as string);
+      const transport = new SSERedisTransport("/messages", res, REDIS_URL as string);
       // console.log("Connecting transport", transport);
       await this.server.connect(transport);
     });
@@ -153,7 +153,7 @@ class DallEClient {
       console.log("Received message");
       const sessionId = req.query.sessionId;
       console.log("Session ID", sessionId);
-      const transport = new SSEPublishTransport("/messages", sessionId, REDIS_URL as string);
+      const transport = new SSERedisTransport("/messages", sessionId, REDIS_URL as string);
       // console.log("Connecting transport", transport);
       await this.server.connect(transport);
       await transport.handlePostMessage(req, res);
