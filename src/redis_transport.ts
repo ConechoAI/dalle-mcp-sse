@@ -45,7 +45,7 @@ export class SSERedisTransport implements Transport {
       await this._subscriberClient.subscribe(channel, (message: string) => {
         try {
           const data = JSON.parse(message);
-          this._sseResponse?.write(`data: ${JSON.stringify(data)}\n\n`);
+          this._sseResponse?.write(`event: message\ndata: ${JSON.stringify(data)}\n\n`);
         } catch (error) {
           console.error('Error handling SSE message:', error);
         }
@@ -69,16 +69,17 @@ export class SSERedisTransport implements Transport {
     // 发布客户端处理handlePostMessage，走onmessage逻辑会触发transport的send方法，始终往redis channel发布消息
     try {
       // @ts-ignore
-      let body = req.body
-      if (!body) {
+      let message = req.body;
+      if (!message) {
         const contentTypeHeader = req.headers['content-type'];
         const ct = contentType.parse(contentTypeHeader as string);
         if (ct.type !== 'application/json') {
           throw new Error('Unsupported content type');
         }
-        body = await getRawBody(req, { encoding: ct.parameters.charset || 'utf-8' });
+        let body = await getRawBody(req, { encoding: ct.parameters.charset || 'utf-8' });
+        message = JSON.parse(body);
       }
-      const message: any = JSON.parse(body);
+      // const message: any = JSON.parse(body);
       const parsedMessage = JSONRPCMessageSchema.parse(message);
       this.onmessage?.(parsedMessage);
     } catch (error) {
