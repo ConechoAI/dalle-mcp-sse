@@ -179,6 +179,7 @@ class DallEClient {
       }
 
       await transport.handlePostMessage(req, res);
+      res.end()
     });
     
     app.listen(PORT, () => {
