@@ -6,18 +6,27 @@ import getRawBody from "raw-body";
 import { JSONRPCMessage, JSONRPCMessageSchema } from "@modelcontextprotocol/sdk/types.js";
 import { Transport } from "@modelcontextprotocol/sdk/shared/transport";
 
-// 基础传输类
-class SSERedisTransportBase implements Transport{
+// 订阅端实现
+export class SSERedisTransport {
   onmessage?: ((message: JSONRPCMessage) => void) | undefined; 
   onerror?: ((error: Error) => void) | undefined;
   _endpoint: string;
   _redisClient: any;
   _isStarted: boolean;
-  constructor(endpoint: string, redisURL: string) {
+  _sseResponse: ServerResponse | undefined;
+  _sessionId: string;
+  _subscriberClient: any;
+  constructor(endpoint: string, resOrSessionId: ServerResponse | string, redisURL: string) {
     this._endpoint = endpoint;
     this._redisClient = createClient({ url: redisURL });
     this._redisClient.on('error', (err: any) => console.error('Redis Client Error', err));
     this._isStarted = false;
+    if (typeof resOrSessionId === 'string') {
+      this._sessionId = resOrSessionId as string;
+    } else {
+      this._sseResponse = resOrSessionId as ServerResponse;
+      this._sessionId = randomUUID()
+    }
   }
 
   async start(): Promise<any> {
@@ -25,91 +34,31 @@ class SSERedisTransportBase implements Transport{
       await this._redisClient.connect();
       this._isStarted = true;
     }
-    console.debug('Redis client connected');
-  }
+    if (this._sseResponse) {
+      // 创建单独的订阅客户端
+      // 订阅客户端直接操作this._ssrResponse不走onmessage逻辑
+      this._subscriberClient = this._redisClient.duplicate();
+      await this._subscriberClient.connect();
+      const channel = this.getChannelName();
 
-  async close() {
-    if (this._isStarted) {
-      await this._redisClient.disconnect();
-      this._isStarted = false;
-    }
-    console.debug('Redis client disconnected');
-  }
-
-  getChannelName(sessionId: string) {
-    return `sse:channel:${sessionId}`;
-  }
-  async send(message: JSONRPCMessage): Promise<void> {
-    throw new Error("Method not implemented.");
-  }
-}
-
-// 订阅端实现
-class SSESubscribeTransport extends SSERedisTransportBase {
-  _sseResponse: any
-  _sessionId: string;
-  _subscriberClient: any;
-  constructor(endpoint: string, res: any, redisURL: string) {
-    super(endpoint, redisURL);
-    this._sseResponse = res;
-    this._sessionId = randomUUID()
-  }
-
-  async start(): Promise<any> {
-    await super.start();
-    // 创建单独的订阅客户端
-    this._subscriberClient = this._redisClient.duplicate();
-    await this._subscriberClient.connect();
-    
-    const channel = this.getChannelName(this.getSessionId());
-
-    console.debug('Subscribing to channel:', channel);
-    
-    await this._subscriberClient.subscribe(channel, (message: string) => {
-      try {
-        const data = JSON.parse(message);
-        this._sseResponse.write(`data: ${JSON.stringify(data)}\n\n`);
-      } catch (error) {
-        console.error('Error handling SSE message:', error);
-      }
-    });
-    this._sseResponse.writeHead(200, {
+      console.debug('Subscribing to channel:', channel);
+      await this._subscriberClient.subscribe(channel, (message: string) => {
+        try {
+          const data = JSON.parse(message);
+          this._sseResponse?.write(`data: ${JSON.stringify(data)}\n\n`);
+        } catch (error) {
+          console.error('Error handling SSE message:', error);
+        }
+      });
+      this._sseResponse.writeHead(200, {
         "Content-Type": "text/event-stream",
         "Cache-Control": "no-cache",
         Connection: "keep-alive",
-    });
-    this._sseResponse.write(`event: endpoint\ndata: ${encodeURI(this._endpoint)}?sessionId=${this._sessionId}\n\n`);
-    // 返回会话ID以供发布端使用
-    return this.getSessionId();
-  }
-
-  // 走一遍server的onmessage逻辑会触发transport的send方法
-  async send(message: JSONRPCMessage): Promise<void> {
-    this._sseResponse.write(`data: ${JSON.stringify(message)}\n\n`);
-  }
-
-  async close() {
-    if (this._subscriberClient) {
-      const channel = this.getChannelName(this.getSessionId());
-      await this._subscriberClient.unsubscribe(channel);
-      await this._subscriberClient.disconnect();
+      });
+      this._sseResponse.write(`event: endpoint\ndata: ${encodeURI(this._endpoint)}?sessionId=${this._sessionId}\n\n`);        
     }
-    await super.close();
   }
 
-  getSessionId() {
-    return this._sessionId;
-  }
-}
-
-// 发布端实现
-class SSEPublishTransport extends SSERedisTransportBase implements Transport {
-  _sessionId: string;
-  constructor(endpoint: string, sessionId: string, redisURL: string) {
-    super(endpoint, redisURL);
-    this._sessionId = sessionId;
-  }
-  
   /**
    * 实现与 SSEServerTransport 兼容的 handlePostMessage 方法
    * @param {Object} req - HTTP 请求对象（不使用，保持接口一致）
@@ -117,6 +66,7 @@ class SSEPublishTransport extends SSERedisTransportBase implements Transport {
    * @returns {Promise<void>}
    */
   async handlePostMessage(req: IncomingMessage, res: ServerResponse): Promise<void> {
+    // 发布客户端处理handlePostMessage，走onmessage逻辑会触发transport的send方法，始终往redis channel发布消息
     try {
       // @ts-ignore
       let body = req.body
@@ -137,18 +87,34 @@ class SSEPublishTransport extends SSERedisTransportBase implements Transport {
     }
   }
 
+  // 走一遍server的onmessage逻辑会触发transport的send方法
   async send(message: JSONRPCMessage): Promise<void> {
     if (!this._isStarted) {
       await this.start();
     }
-
-    const channel = this.getChannelName(this._sessionId);
+    const channel = this.getChannelName();
     await this._redisClient.publish(channel, JSON.stringify(message));
     await this.close();
   }
+
+  async close() {
+    if (this._subscriberClient) {
+      const channel = this.getChannelName();
+      await this._subscriberClient.unsubscribe(channel);
+      await this._subscriberClient.disconnect();
+    }
+    if (this._isStarted) {
+      await this._redisClient.disconnect();
+      this._isStarted = false;
+    }
+  }
+
+  getSessionId() {
+    return this._sessionId;
+  }
+  getChannelName() {
+    return `sse:channel:${this._sessionId}`;
+  }
 }
 
-export {
-    SSESubscribeTransport,
-    SSEPublishTransport
-}
+export default SSERedisTransport;
