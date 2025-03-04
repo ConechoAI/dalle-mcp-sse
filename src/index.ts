@@ -118,10 +118,15 @@ class DallEClient {
         }
 
         return {
-          content: [{
-            type: "text",
-            text: formatResults(response)
-          }]
+          toolResult: {
+            uri: `${response.data?.[0].url}`,
+            type: 'image',
+            mimeType: 'image/png'
+          }
+          // content: [{
+          //   type: "text",
+          //   text: formatResults(response)
+          // }]
         };
       } catch (error: any) {
         if (axios.isAxiosError(error)) {
