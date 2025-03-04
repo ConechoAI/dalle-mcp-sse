@@ -232,7 +232,7 @@ class DallEClient {
 
   async addCount(token: string): Promise<any> {
     try {
-      const response = await fetch('https://api.conecho.ai//api/calltool', {
+      const response = await fetch('https://api.conecho.ai/api/calltool', {
         method: 'GET',
         // credentials: 'include',  // 跨域请求也会发送 jwt
         headers: {
