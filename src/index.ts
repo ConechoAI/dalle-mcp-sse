@@ -164,7 +164,7 @@ class DallEClient {
         console.log("Token", token)
         const userInfo = await this.fetchUserInfo(token)
         console.log("User info", userInfo)
-        if (!userInfo) {
+        if (!userInfo ) {
           transport
           ?.send({
             jsonrpc: "2.0",
@@ -175,6 +175,23 @@ class DallEClient {
             }]},
           });
           return;
+        } else {
+          const call_limit = userInfo.data.extra.call_limit;
+          if (call_limit <= 0) {
+            transport
+            ?.send({
+              jsonrpc: "2.0",
+              id: body.id,
+              result: {content: [{
+                type: "text",
+                text: "Reach the limit"  
+              }]},
+            });
+            return;
+          } else {
+            const res = await this.addCount(token)
+            console.log("left count", res)
+          }
         }
       }
 
@@ -192,6 +209,30 @@ class DallEClient {
       // 模拟请求：根据 jwt 获取用户账户信息
       // 你可以替换下面的代码为实际的 API 请求
       const response = await fetch('https://api.conecho.ai/api/account', {
+        method: 'GET',
+        // credentials: 'include',  // 跨域请求也会发送 jwt
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,  // 携带 token
+        },
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (!data) {
+          return
+        }
+        return data;
+      } else {
+        return
+      }
+    } catch (error) {
+      return
+    }
+  }
+
+  async addCount(token: string): Promise<any> {
+    try {
+      const response = await fetch('https://api.conecho.ai//api/calltool', {
         method: 'GET',
         // credentials: 'include',  // 跨域请求也会发送 jwt
         headers: {
