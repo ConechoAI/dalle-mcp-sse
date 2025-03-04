@@ -30,8 +30,8 @@ importers:
         specifier: ^4.7.0
         version: 4.7.0
       redis-mcp-transport:
-        specifier: ^0.4.0
-        version: 0.4.0
+        specifier: ^0.5.0
+        version: 0.5.0
     devDependencies:
       '@types/content-type':
         specifier: ^1.1.8
@@ -502,8 +502,8 @@ packages:
     resolution: {integrity: sha512-RmkhL8CAyCRPXCE28MMH0z2PNWQBNk2Q09ZdxM9IOOXwxwZbN+qbWaatPkdkWIKL2ZVDImrN/pK5HTRz2PcS4g==}
     engines: {node: '>= 0.8'}
 
-  redis-mcp-transport@0.4.0:
-    resolution: {integrity: sha512-K/7F5ZoEal4IxXhPjgwUe+gdfUe1jM+0sAsythStVjSQnL/SnjbFEczk+OyCHWxdKAWmEsk260VABbOO4miRyA==}
+  redis-mcp-transport@0.5.0:
+    resolution: {integrity: sha512-RdiK1TH68PEH8LSjzgSLgp5W72YZveNZWUxPHYEXQnNqgG3O95sFORpDP5celvHwDRaDN2T0J6LRW3ucraMWoA==}
 
   redis@4.7.0:
     resolution: {integrity: sha512-zvmkHEAdGMn+hMRXuMBtu4Vo5P6rHQjLoHftu+lBqq8ZTA3RCVC/WzD790bkKKiNFp7d5/9PcSD19fJyyRvOdQ==}
@@ -1111,7 +1111,7 @@ snapshots:
       iconv-lite: 0.6.3
       unpipe: 1.0.0
 
-  redis-mcp-transport@0.4.0:
+  redis-mcp-transport@0.5.0:
     dependencies:
       '@modelcontextprotocol/sdk': 1.6.1
       '@types/content-type': 1.1.8
